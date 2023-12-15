@@ -60,6 +60,7 @@ def process_reports(report_list, credentials):
                     item_time = file_info.stat().st_mtime
                     is_file_old = file_info.is_file() and item_time < expire_date
                     if is_file_old:
+                        # noinspection PyTypeChecker
                         smbclient.remove(os.path.join(directory_path, file_info.name))
             except SMBResponseException as exc:
                 print(f"Error deleting file: {exc}")
