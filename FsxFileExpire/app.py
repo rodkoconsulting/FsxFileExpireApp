@@ -1,135 +1,83 @@
+# Python
 import json
+import os
+import time
+from collections import namedtuple
 import boto3
-import os, time, sys
-import base64
 import smbclient
-from botocore.exceptions import ClientError
-from pathlib import Path
+from smbprotocol.exceptions import SMBResponseException
 
-from smbprotocol.exceptions import (
-    SMBResponseException,
-)
+PARAMETER_STORE_KEY = '/fsx/credentials/share'
+PARAMETER_STORE_FUNCTION = 'ParameterStoreGetValueFunction_PROD'
+BASE_PATH = 'MAS_PDF/Sales_PDFExplode'
+REPORT_ITEMS = {
+    "NJ_NOB": {"path": 'NJ NOB/PDFExplode', "days": 1825},
+    "NJ_DAY6": {"path": 'NJ DAY6/PDFExplode', "days": 1},
+    "NY_NOD": {"path": 'NY NOD/PDFExplode', "days": 730},
+    "NY_PAST_DUE": {"path": 'NY PAST DUE/PDFExplode', "days": 1},
+    "NY_DAY4": {"path": 'NY DAY4/PDFExplode', "days": 1},
+    "NYS_TAX_STATEMENTS": {"path": 'NYSTaxStatements', "days": 1},
+    "MANIFEST": {"path": 'Manifest', "days": 1},
+    "EXP_MOBO": {"path": 'Exp MOBO', "days": 1},
+    "AR_AGING_PAST_DUE_REP": {"path": 'Exp MOBO', "days": 1},
+    "DAILY_SALES": {"path": 'DailySales', "days": 1},
+    "MTD_SALES": {"path": 'MtdSales', "days": 1}
+}
+SECONDS_IN_DAY = 86400
+
+
+def get_credentials_from_parameter_store(parameter):
+    lambda_client = boto3.client('lambda')
+    return lambda_client.invoke(FunctionName=PARAMETER_STORE_FUNCTION, InvocationType='RequestResponse',
+                                Payload=json.dumps(parameter))
+
+
+def get_credentials_from_json(credentials_json):
+    json_string = json.loads(credentials_json)
+    username = json_string["username"]
+    password = json_string["password"]
+    host = json_string["host"]
+    share = json_string["share"]
+    credentials = namedtuple('Credentials', 'username password host share')
+    return credentials(username, password, host, share)
+
+
+def get_expire_date(expire_days):
+    return time.time() - expire_days * SECONDS_IN_DAY
+
+
+def create_report_list():
+    return [{value["path"]: value["days"]} for value in REPORT_ITEMS.values()]
+
+
+def process_reports(report_list, credentials):
+    for report in report_list:
+        for sub_path, expire_days in report.items():
+            directory_path = os.path.join(credentials.host, credentials.share, BASE_PATH, sub_path)
+            try:
+                expire_date = get_expire_date(expire_days)
+                for file_info in smbclient.scandir(directory_path):
+                    item_time = file_info.stat().st_mtime
+                    is_file_old = file_info.is_file() and item_time < expire_date
+                    if is_file_old:
+                        smbclient.remove(os.path.join(directory_path, file_info.name))
+            except SMBResponseException as exc:
+                print(f"Error deleting file: {exc}")
+                continue
 
 
 def lambda_handler(event, context):
-    secret = get_secret("credentials-share")
-
-    jsonString = json.loads(secret)
-    username = jsonString["username"]
-    password = jsonString["password"]
-    host = jsonString["host"]
-    destShare = jsonString["share"]
-    basePath = "MAS_PDF/Sales_PDFExplode"
-    njNobPath = "NJ NOB/PDFExplode"
-    njDay6Path = "NJ DAY6/PDFExplode"
-    nyNodPath = "NY NOD/PDFExplode"
-    nyPastDuePath = "NY PAST DUE/PDFExplode"
-    nyDay4Path = "NY DAY4/PDFExplode"
-    nysTaxStatementsPath = "NYSTaxStatements"
-    manifestPath = "Manifest"
-    expMoboPath = "Exp MOBO"
-    arAgingPastDueRepPath = "ArAgingPastDueRep"
-    dailySalesPath = "DailySales"
-    mtdSalesPath = "MtdSales"
-    njNobDays = 1825
-    nyNodDays = 730
-    nyPastDueDays = 1
-    nyDay4Days = 1
-    nysTaxStatementsDays = 1
-    manifestDays = 1
-    njDay6Days = 1
-    expMoboDays = 1
-    arAgingPastDueRepDays = 1
-    dailySalesDays = 1
-    mtdSalesDays = 1
-    now = time.time()
-
-    reportList = [{}]
-    reportList.append({njNobPath: njNobDays})
-    reportList.append({njDay6Path: njDay6Days})
-    reportList.append({nyNodPath: nyNodDays})
-    reportList.append({nyPastDuePath: nyPastDueDays})
-    reportList.append({nyDay4Path: nyDay4Days})
-    reportList.append({nysTaxStatementsPath: nysTaxStatementsDays})
-    reportList.append({manifestPath: manifestDays})
-    reportList.append({expMoboPath: expMoboDays})
-    reportList.append({arAgingPastDueRepPath: arAgingPastDueRepDays})
-    reportList.append({dailySalesPath: dailySalesDays})
-    reportList.append({mtdSalesPath: mtdSalesDays})
+    credentials_json = get_credentials_from_parameter_store(PARAMETER_STORE_KEY)
+    credentials = get_credentials_from_json(credentials_json)
+    report_list = create_report_list()
 
     try:
-        print("Server: {}".format(host))
-        print("User: {}".format(username))
-        smbclient.register_session(server=host, username=username, password=password)
-        print("SMB client registered")
+        smbclient.register_session(server=credentials.host, username=credentials.username,
+                                   password=credentials.password)
     except SMBResponseException as exc:
-        print("Error establishing session: {}".format(exc))
+        print(f"Error establishing session: {exc}")
+        return
 
-    for report in reportList:
-        for subPath, expireDays in report.items():
-            try:
-                expireDate = now - expireDays * 86400
-                directoryPath = os.path.join(host, destShare, basePath, subPath)
-                for file_info in smbclient.scandir(directoryPath):
-                    itemTime = file_info.stat().st_mtime
-                    if file_info.is_file() and itemTime < expireDate:
-                        smbclient.remove(os.path.join(directoryPath, file_info.name))
-            except SMBResponseException as exc:
-                ("Error deleting file: {}".format(exc))
-                continue
+    process_reports(report_list, credentials)
+
     smbclient.reset_connection_cache()
-
-
-def get_secret(secret_name):
-    print("Starting get_secret")
-    region_name = os.environ['AWS_REGION']
-    print("Region: {}".format(region_name))
-    # Create a Secrets Manager client
-    session = boto3.session.Session()
-    client = session.client(
-        service_name='secretsmanager',
-        region_name=region_name
-    )
-
-    # In this sample we only handle the specific exceptions for the 'GetSecretValue' API.
-    # See https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-    # We rethrow the exception by default.
-
-    try:
-        print("Starting get_secret_value_response")
-        print("Secret name:{}".format(secret_name))
-        get_secret_value_response = client.get_secret_value(
-            SecretId=secret_name
-        )
-        print("Complete get_secret_value_response")
-
-    except ClientError as e:
-        if e.response['Error']['Code'] == 'DecryptionFailureException':
-            # Secrets Manager can't decrypt the protected secret text using the provided KMS key.
-            # Deal with the exception here, and/or rethrow at your discretion.
-            raise e
-        elif e.response['Error']['Code'] == 'InternalServiceErrorException':
-            # An error occurred on the server side.
-            # Deal with the exception here, and/or rethrow at your discretion.
-            raise e
-        elif e.response['Error']['Code'] == 'InvalidParameterException':
-            # You provided an invalid value for a parameter.
-            # Deal with the exception here, and/or rethrow at your discretion.
-            raise e
-        elif e.response['Error']['Code'] == 'InvalidRequestException':
-            # You provided a parameter value that is not valid for the current state of the resource.
-            # Deal with the exception here, and/or rethrow at your discretion.
-            raise e
-        elif e.response['Error']['Code'] == 'ResourceNotFoundException':
-            # We can't find the resource that you asked for.
-            # Deal with the exception here, and/or rethrow at your discretion.
-            raise e
-    else:
-        # Decrypts secret using the associated KMS CMK.
-        # Depending on whether the secret is a string or binary, one of these fields will be populated.
-        if 'SecretString' in get_secret_value_response:
-            secret = get_secret_value_response['SecretString']
-            return secret
-        else:
-            decoded_binary_secret = base64.b64decode(get_secret_value_response['SecretBinary'])
-            return decoded_binary_secret
