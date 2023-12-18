@@ -1,12 +1,10 @@
 import unittest
 from FsxFileExpire import app
-import smbclient
 
-ASSERT_CREDENTIALS_KEY = 'username'
 REPORT_COUNT = 11
 
 
-class TestHandlerCase(unittest.TestCase):
+class UnitTestHandlerCase(unittest.TestCase):
     def test_response(self):
         print("Testing calls to lambda function")
         report_list = app.create_report_list()
