@@ -7,7 +7,7 @@ ASSERT_CREDENTIALS_KEY = 'username'
 REPORT_COUNT = 11
 
 
-class TestHandlerCase(unittest.TestCase):
+class IntegrationTestHandlerCase(unittest.TestCase):
     def test_response(self):
         print("Testing calls from lambda function")
         credentials_json = app.get_credentials_from_parameter_store(PARAMETER_STORE_KEY)
