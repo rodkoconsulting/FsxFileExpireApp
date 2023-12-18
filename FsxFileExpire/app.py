@@ -12,11 +12,7 @@ class SMBDeleteFileException(SMBResponseException):
     pass
 
 
-class Credentials(namedtuple):
-    username: str
-    password: str
-    host: str
-    share: str
+Credentials = namedtuple('Credentials', ['username', 'password', 'host', 'share'])
 
 
 PARAMETER_STORE_KEY = '/fsx/credentials/share'
