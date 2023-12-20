@@ -8,12 +8,7 @@ import smbclient
 from smbprotocol.exceptions import SMBResponseException
 
 
-class SMBDeleteFileException(SMBResponseException):
-    pass
-
-
 Credentials = namedtuple('Credentials', ['username', 'password', 'host', 'share'])
-
 
 PARAMETER_STORE_KEY = '/fsx/credentials/share'
 PARAMETER_STORE_FUNCTION = 'ParameterStoreGetValueFunction_PROD'
@@ -67,7 +62,7 @@ def process_report(report: dict, credentials: Credentials):
                     file_path = os.path.join(directory_path, file_info.name)
                     remove_file(file_path)
         except SMBResponseException as exc:
-            raise SMBDeleteFileException("Error when processing the report") from exc
+            raise SMBResponseException("Error when deleting file") from exc
 
 
 def process_reports(report_list, credentials):
@@ -91,11 +86,8 @@ def expire_files():
 def handle_errors(action):
     try:
         return action()
-    except SMBDeleteFileException as exc:
-        print(f'Error deleting file: {exc}')
-        raise
     except SMBResponseException as exc:
-        print(f"Error establishing session: {exc}")
+        print(f"SMB Error: {exc}")
         raise
     except Exception as e:
         print(f'Error: {e}')
