@@ -42,6 +42,9 @@ Parameters:
   TestingStackName:
     Type: String
     Default: "FsxFileExpireStack-Dev"
+    TestingEnvironment:
+      Type: String
+      Default: "DEV"
   TestingPipelineExecutionRole:
     Type: String
     Default: "arn:aws:iam::424371521123:role/aws-sam-cli-managed-dev-pipel-PipelineExecutionRole-oUlSAMkUZFox"
@@ -63,6 +66,9 @@ Parameters:
   ProdStackName:
     Type: String
     Default: "FsxFileExpireStack-Prod"
+  ProdEnvironment:
+    Type: String
+    Default: "PROD"
   ProdPipelineExecutionRole:
     Type: String
     Default: "arn:aws:iam::424371521123:role/aws-sam-cli-managed-prod-pipe-PipelineExecutionRole-ZhsYpsXeU52t"
@@ -85,6 +91,21 @@ Parameters:
   FeatureGitBranch:
     Type: String
     Default: ""
+  ManualApprovalNotificationArn:
+    Type: String
+    Default: "arn:aws:sns:us-east-1:424371521123:CodePipelineApproval"
+  VpcId:
+    Type: String
+    Default: "vpc-0d6712c4bd670aca6"
+  CodeBuildSecurityGroup:
+    Type: String
+    Default: "sg-06f10588fe50e44c4"
+  CodeBuildSubnetPrimary:
+    Type: String
+    Default: "subnet-0d94e42bf9291d974"
+  CodeBuildSubnetSecondary:
+    Type: String
+    Default: "subnet-0c214adc13ccee377"
 
 Conditions:
   IsMainBranchPipeline: !Equals [!Ref FeatureGitBranch, ""]
