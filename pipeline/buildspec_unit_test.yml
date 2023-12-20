@@ -9,6 +9,7 @@ phases:
       - echo 'Running unit tests'
       - pip install --upgrade pip
       - pip install --upgrade awscli aws-sam-cli
+      - pip install --upgrade smbprotocol
       - . ./assume-role.sh ${ENV_PIPELINE_EXECUTION_ROLE} deploy
       - python -m unittest discover tests/unit
 
