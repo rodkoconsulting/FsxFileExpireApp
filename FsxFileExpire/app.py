@@ -31,8 +31,9 @@ SECONDS_IN_DAY = 86400
 
 def get_credentials_from_parameter_store(parameter):
     lambda_client = boto3.client('lambda')
+    parameter_json = {"Name": parameter}
     lambda_response = lambda_client.invoke(FunctionName=PARAMETER_STORE_FUNCTION, InvocationType='RequestResponse',
-                                           Payload=json.dumps(parameter))
+                                           Payload=json.dumps(parameter_json))
     return json.load(lambda_response['Payload'])
 
 
