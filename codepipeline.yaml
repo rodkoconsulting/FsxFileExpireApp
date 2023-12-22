@@ -734,6 +734,13 @@ Resources:
     Condition: IsMainBranchPipeline
     Type: AWS::CodeBuild::Project
     Properties:
+      VpcConfig:
+        VpcId: !Ref VpcId
+        SecurityGroupIds:
+          - !Ref CodeBuildSecurityGroup
+        Subnets:
+          - !Ref CodeBuildSubnetPrimary
+          - !Ref CodeBuildSubnetSecondary
       Artifacts:
         Type: CODEPIPELINE
       Environment:
