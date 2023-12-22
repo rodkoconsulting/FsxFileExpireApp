@@ -99,7 +99,7 @@ Parameters:
     Default: "vpc-0d6712c4bd670aca6"
   CodeBuildSecurityGroup:
     Type: String
-    Default: "sg-06f10588fe50e44c4"
+    Default: "sg-07c93d0594bba6edc"
   CodeBuildSubnetPrimary:
     Type: String
     Default: "subnet-0d94e42bf9291d974"
