@@ -22,7 +22,7 @@ REPORT_ITEMS = {
     "NYS_TAX_STATEMENTS": {"path": 'NYSTaxStatements', "days": 1},
     "MANIFEST": {"path": 'Manifest', "days": 1},
     "EXP_MOBO": {"path": 'Exp MOBO', "days": 1},
-    "AR_AGING_PAST_DUE_REP": {"path": 'Exp MOBO', "days": 1},
+    "AR_AGING_PAST_DUE_REP": {"path": 'ArAgingPastDueRep', "days": 1},
     "DAILY_SALES": {"path": 'DailySales', "days": 1},
     "MTD_SALES": {"path": 'MtdSales', "days": 1}
 }
